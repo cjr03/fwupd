@@ -43,3 +43,7 @@ Flags = ~hwid-test-flag
 [com.dell-wmi-sysman.SecureBoot]
 BiosSettingCanonicalId = secure-boot
 BiosSettingFlags = user-friendly
+
+[com.dell-wmi-sysman.Camera]
+BiosSettingCanonicalId = camera
+BiosSettingFlags = user-friendly

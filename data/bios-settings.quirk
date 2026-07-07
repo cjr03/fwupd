@@ -21,3 +21,75 @@ BiosSettingFlags = user-friendly
 [com.thinklmi.WindowsUEFIFirmwareUpdate]
 BiosSettingCanonicalId = firmware-update-opt-in
 BiosSettingFlags = user-friendly
+
+# Wake on LAN
+[com.dell-wmi-sysman.WakeOnLan]
+BiosSettingCanonicalId = wake-on-lan
+BiosSettingFlags = user-friendly
+
+[com.thinklmi.WakeonLAN]
+BiosSettingCanonicalId = wake-on-lan
+BiosSettingFlags = user-friendly
+
+# Boot-up Num Lock state
+[com.dell-wmi-sysman.NumLock]
+BiosSettingCanonicalId = num-lock
+BiosSettingFlags = user-friendly
+
+[com.thinklmi.BootUpNumLockStatus]
+BiosSettingCanonicalId = num-lock
+BiosSettingFlags = user-friendly
+
+# Memory encryption
+[com.thinklmi.AMDMemoryGuard]
+BiosSettingCanonicalId = memory-encryption
+BiosSettingFlags = user-friendly
+
+# Camera
+[com.dell-wmi-sysman.Camera]
+BiosSettingCanonicalId = camera
+BiosSettingFlags = user-friendly
+
+# Microphone
+[com.dell-wmi-sysman.Microphone]
+BiosSettingCanonicalId = microphone
+BiosSettingFlags = user-friendly
+
+# Bluetooth
+[com.dell-wmi-sysman.BluetoothDevice]
+BiosSettingCanonicalId = bluetooth
+BiosSettingFlags = user-friendly
+
+# Wireless LAN
+[com.dell-wmi-sysman.WirelessLan]
+BiosSettingCanonicalId = wireless-lan
+BiosSettingFlags = user-friendly
+
+# Fingerprint reader
+[com.dell-wmi-sysman.FingerprintReader]
+BiosSettingCanonicalId = fingerprint-reader
+BiosSettingFlags = user-friendly
+
+# Touchscreen
+[com.dell-wmi-sysman.Touchscreen]
+BiosSettingCanonicalId = touchscreen
+BiosSettingFlags = user-friendly
+
+# Integrated audio
+[com.dell-wmi-sysman.IntegratedAudio]
+BiosSettingCanonicalId = audio
+BiosSettingFlags = user-friendly
+
+# Media/SD card reader
+[com.dell-wmi-sysman.SdCard]
+BiosSettingCanonicalId = media-card-reader
+BiosSettingFlags = user-friendly
+
+[com.thinklmi.MediaCardReader]
+BiosSettingCanonicalId = media-card-reader
+BiosSettingFlags = user-friendly
+
+# Keyboard backlight / illumination
+[com.dell-wmi-sysman.KeyboardIllumination]
+BiosSettingCanonicalId = keyboard-backlight
+BiosSettingFlags = user-friendly

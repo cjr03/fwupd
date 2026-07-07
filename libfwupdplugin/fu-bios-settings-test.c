@@ -202,6 +202,14 @@ fu_bios_settings_load_func(void)
 		ret = fwupd_bios_setting_has_flag(setting, FWUPD_BIOS_SETTING_FLAG_USER_FRIENDLY);
 		g_assert_true(ret);
 
+		/* a device-toggle setting also picks up its canonical ID and flag */
+		setting = fu_context_get_bios_setting(ctx, "com.dell-wmi-sysman.Camera");
+		g_assert_nonnull(setting);
+		tmp = fwupd_bios_setting_get_canonical_id(setting);
+		g_assert_cmpstr(tmp, ==, "camera");
+		ret = fwupd_bios_setting_has_flag(setting, FWUPD_BIOS_SETTING_FLAG_USER_FRIENDLY);
+		g_assert_true(ret);
+
 		/* an esoteric setting has no canonical ID and is not user-friendly */
 		setting = fu_context_get_bios_setting(ctx, "com.dell-wmi-sysman.Asset");
 		g_assert_nonnull(setting);
