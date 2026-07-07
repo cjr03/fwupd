@@ -108,6 +108,25 @@ void
 fwupd_bios_setting_set_id(FwupdBiosSetting *self, const gchar *id) G_GNUC_NON_NULL(1);
 
 const gchar *
+fwupd_bios_setting_get_canonical_id(FwupdBiosSetting *self) G_GNUC_NON_NULL(1);
+void
+fwupd_bios_setting_set_canonical_id(FwupdBiosSetting *self, const gchar *canonical_id)
+    G_GNUC_NON_NULL(1);
+
+guint64
+fwupd_bios_setting_get_flags(FwupdBiosSetting *self) G_GNUC_NON_NULL(1);
+void
+fwupd_bios_setting_set_flags(FwupdBiosSetting *self, guint64 flags) G_GNUC_NON_NULL(1);
+void
+fwupd_bios_setting_add_flag(FwupdBiosSetting *self, FwupdBiosSettingFlags flag) G_GNUC_NON_NULL(1);
+void
+fwupd_bios_setting_remove_flag(FwupdBiosSetting *self, FwupdBiosSettingFlags flag)
+    G_GNUC_NON_NULL(1);
+gboolean
+fwupd_bios_setting_has_flag(FwupdBiosSetting *self,
+			    FwupdBiosSettingFlags flag) G_GNUC_WARN_UNUSED_RESULT G_GNUC_NON_NULL(1);
+
+const gchar *
 fwupd_bios_setting_get_filename(FwupdBiosSetting *self) G_GNUC_NON_NULL(1);
 void
 fwupd_bios_setting_set_filename(FwupdBiosSetting *self, const gchar *filename) G_GNUC_NON_NULL(1);

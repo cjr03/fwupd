@@ -300,6 +300,23 @@ fu_quirks_add_possible_key(FuQuirks *self, const gchar *possible_key) G_GNUC_NON
  **/
 #define FU_QUIRKS_BATTERY_THRESHOLD "BatteryThreshold"
 /**
+ * FU_QUIRKS_BIOS_SETTING_CANONICAL_ID:
+ *
+ * The quirk key for the vendor-neutral canonical identifier of a BIOS setting,
+ * e.g. `secure-boot`.
+ *
+ * Since: 2.1.7
+ **/
+#define FU_QUIRKS_BIOS_SETTING_CANONICAL_ID "BiosSettingCanonicalId"
+/**
+ * FU_QUIRKS_BIOS_SETTING_FLAGS:
+ *
+ * The quirk key for the flags of a BIOS setting, e.g. `user-friendly`.
+ *
+ * Since: 2.1.7
+ **/
+#define FU_QUIRKS_BIOS_SETTING_FLAGS "BiosSettingFlags"
+/**
  * FU_QUIRKS_REMOVE_DELAY:
  *
  * The quirk key for the device removal delay in milliseconds, e.g. `2500`.

@@ -7,12 +7,13 @@
 #pragma once
 
 #include "fu-bios-settings.h"
+#include "fu-context.h"
 #include "fu-path-store.h"
 
 FuBiosSettings *
 fu_bios_settings_new(FuPathStore *pstore);
 gboolean
-fu_bios_settings_setup(FuBiosSettings *self, GError **error) G_GNUC_NON_NULL(1);
+fu_bios_settings_setup(FuBiosSettings *self, FuContext *ctx, GError **error) G_GNUC_NON_NULL(1);
 
 GPtrArray *
 fu_bios_settings_get_all(FuBiosSettings *self) G_GNUC_NON_NULL(1);

@@ -25,7 +25,9 @@ fwupd_bios_setting_finalize(GObject *object);
 
 typedef struct {
 	FwupdBiosSettingKind kind;
+	guint64 flags;
 	gchar *id;
+	gchar *canonical_id;
 	gchar *name;
 	gchar *description;
 	gchar *path;
@@ -91,6 +93,138 @@ fwupd_bios_setting_set_id(FwupdBiosSetting *self, const gchar *id)
 
 	g_free(priv->id);
 	priv->id = g_strdup(id);
+}
+
+/**
+ * fwupd_bios_setting_get_canonical_id
+ * @self: a #FwupdBiosSetting
+ *
+ * Gets the vendor-neutral canonical identifier for this setting, e.g. `secure-boot`.
+ *
+ * This allows software to treat the same conceptual setting consistently even
+ * though vendors name and value it differently.
+ *
+ * Returns: canonical ID if set otherwise NULL
+ *
+ * Since: 2.1.7
+ **/
+const gchar *
+fwupd_bios_setting_get_canonical_id(FwupdBiosSetting *self)
+{
+	FwupdBiosSettingPrivate *priv = GET_PRIVATE(self);
+	g_return_val_if_fail(FWUPD_IS_BIOS_SETTING(self), NULL);
+	return priv->canonical_id;
+}
+
+/**
+ * fwupd_bios_setting_set_canonical_id
+ * @self: a #FwupdBiosSetting
+ * @canonical_id: (nullable): the vendor-neutral canonical identifier
+ *
+ * Sets the vendor-neutral canonical identifier for this setting.
+ *
+ * Since: 2.1.7
+ **/
+void
+fwupd_bios_setting_set_canonical_id(FwupdBiosSetting *self, const gchar *canonical_id)
+{
+	FwupdBiosSettingPrivate *priv = GET_PRIVATE(self);
+	g_return_if_fail(FWUPD_IS_BIOS_SETTING(self));
+
+	/* not changed */
+	if (g_strcmp0(priv->canonical_id, canonical_id) == 0)
+		return;
+
+	g_free(priv->canonical_id);
+	priv->canonical_id = g_strdup(canonical_id);
+}
+
+/**
+ * fwupd_bios_setting_get_flags:
+ * @self: a #FwupdBiosSetting
+ *
+ * Gets the setting flags.
+ *
+ * Returns: setting flags, or 0 if unset
+ *
+ * Since: 2.1.7
+ **/
+guint64
+fwupd_bios_setting_get_flags(FwupdBiosSetting *self)
+{
+	FwupdBiosSettingPrivate *priv = GET_PRIVATE(self);
+	g_return_val_if_fail(FWUPD_IS_BIOS_SETTING(self), 0);
+	return priv->flags;
+}
+
+/**
+ * fwupd_bios_setting_set_flags:
+ * @self: a #FwupdBiosSetting
+ * @flags: setting flags, e.g. %FWUPD_BIOS_SETTING_FLAG_USER_FRIENDLY
+ *
+ * Sets the setting flags.
+ *
+ * Since: 2.1.7
+ **/
+void
+fwupd_bios_setting_set_flags(FwupdBiosSetting *self, guint64 flags)
+{
+	FwupdBiosSettingPrivate *priv = GET_PRIVATE(self);
+	g_return_if_fail(FWUPD_IS_BIOS_SETTING(self));
+	priv->flags = flags;
+}
+
+/**
+ * fwupd_bios_setting_add_flag:
+ * @self: a #FwupdBiosSetting
+ * @flag: the #FwupdBiosSettingFlags
+ *
+ * Adds a specific setting flag to the setting.
+ *
+ * Since: 2.1.7
+ **/
+void
+fwupd_bios_setting_add_flag(FwupdBiosSetting *self, FwupdBiosSettingFlags flag)
+{
+	FwupdBiosSettingPrivate *priv = GET_PRIVATE(self);
+	g_return_if_fail(FWUPD_IS_BIOS_SETTING(self));
+	priv->flags |= flag;
+}
+
+/**
+ * fwupd_bios_setting_remove_flag:
+ * @self: a #FwupdBiosSetting
+ * @flag: the #FwupdBiosSettingFlags
+ *
+ * Removes a specific setting flag from the setting.
+ *
+ * Since: 2.1.7
+ **/
+void
+fwupd_bios_setting_remove_flag(FwupdBiosSetting *self, FwupdBiosSettingFlags flag)
+{
+	FwupdBiosSettingPrivate *priv = GET_PRIVATE(self);
+	g_return_if_fail(FWUPD_IS_BIOS_SETTING(self));
+	priv->flags &= ~flag;
+}
+
+/**
+ * fwupd_bios_setting_has_flag:
+ * @self: a #FwupdBiosSetting
+ * @flag: the #FwupdBiosSettingFlags
+ *
+ * Finds if the setting has a specific setting flag.
+ *
+ * Returns: %TRUE if the flag is set
+ *
+ * Since: 2.1.7
+ **/
+gboolean
+fwupd_bios_setting_has_flag(FwupdBiosSetting *self, FwupdBiosSettingFlags flag)
+{
+	FwupdBiosSettingPrivate *priv = GET_PRIVATE(self);
+	g_return_val_if_fail(FWUPD_IS_BIOS_SETTING(self), FALSE);
+	return (priv->flags & flag) > 0;
 }
 
 /**
@@ -946,6 +1080,18 @@ fwupd_bios_setting_add_variant(FwupdCodec *codec, GVariantBuilder *builder, Fwup
 				      FWUPD_RESULT_KEY_BIOS_SETTING_ID,
 				      g_variant_new_string(priv->id));
 	}
+	if (priv->canonical_id != NULL) {
+		g_variant_builder_add(builder,
+				      "{sv}",
+				      FWUPD_RESULT_KEY_BIOS_SETTING_CANONICAL_ID,
+				      g_variant_new_string(priv->canonical_id));
+	}
+	if (priv->flags != 0) {
+		g_variant_builder_add(builder,
+				      "{sv}",
+				      FWUPD_RESULT_KEY_BIOS_SETTING_FLAGS,
+				      g_variant_new_uint64(priv->flags));
+	}
 	if (priv->name != NULL) {
 		g_variant_builder_add(builder,
 				      "{sv}",
@@ -1023,6 +1169,14 @@ fwupd_bios_setting_from_key_value(FwupdBiosSetting *self, const gchar *key, GVar
 		fwupd_bios_setting_set_id(self, fwupd_variant_get_string(value));
 		return;
 	}
+	if (g_strcmp0(key, FWUPD_RESULT_KEY_BIOS_SETTING_CANONICAL_ID) == 0) {
+		fwupd_bios_setting_set_canonical_id(self, fwupd_variant_get_string(value));
+		return;
+	}
+	if (g_strcmp0(key, FWUPD_RESULT_KEY_BIOS_SETTING_FLAGS) == 0) {
+		fwupd_bios_setting_set_flags(self, fwupd_variant_get_uint64(value));
+		return;
+	}
 	if (g_strcmp0(key, FWUPD_RESULT_KEY_NAME) == 0) {
 		fwupd_bios_setting_set_name(self, fwupd_variant_get_string(value));
 		return;
@@ -1085,6 +1239,18 @@ fwupd_bios_setting_from_json(FwupdCodec *codec, FwupdJsonObject *json_obj, GErro
 	fwupd_bios_setting_set_id(
 	    self,
 	    fwupd_json_object_get_string(json_obj, FWUPD_RESULT_KEY_BIOS_SETTING_ID, NULL));
+	fwupd_bios_setting_set_canonical_id(
+	    self,
+	    fwupd_json_object_get_string(json_obj,
+					 FWUPD_RESULT_KEY_BIOS_SETTING_CANONICAL_ID,
+					 NULL));
+	if (!fwupd_json_object_get_integer_with_default(json_obj,
+							FWUPD_RESULT_KEY_BIOS_SETTING_FLAGS,
+							&tmpi,
+							0,
+							error))
+		return FALSE;
+	fwupd_bios_setting_set_flags(self, tmpi);
 
 	fwupd_bios_setting_set_name(
 	    self,
@@ -1161,6 +1327,16 @@ fwupd_bios_setting_add_json(FwupdCodec *codec, FwupdJsonObject *json_obj, FwupdC
 		fwupd_json_object_add_string(json_obj, FWUPD_RESULT_KEY_FILENAME, priv->path);
 	if (priv->id != NULL)
 		fwupd_json_object_add_string(json_obj, FWUPD_RESULT_KEY_BIOS_SETTING_ID, priv->id);
+	if (priv->canonical_id != NULL) {
+		fwupd_json_object_add_string(json_obj,
+					     FWUPD_RESULT_KEY_BIOS_SETTING_CANONICAL_ID,
+					     priv->canonical_id);
+	}
+	if (priv->flags != 0) {
+		fwupd_json_object_add_integer(json_obj,
+					      FWUPD_RESULT_KEY_BIOS_SETTING_FLAGS,
+					      priv->flags);
+	}
 	if (priv->current_value != NULL) {
 		fwupd_json_object_add_string(json_obj,
 					     FWUPD_RESULT_KEY_BIOS_SETTING_CURRENT_VALUE,
@@ -1212,6 +1388,21 @@ fwupd_bios_setting_add_string(FwupdCodec *codec, guint idt, GString *str)
 
 	fwupd_codec_string_append(str, idt, FWUPD_RESULT_KEY_NAME, priv->name);
 	fwupd_codec_string_append(str, idt, FWUPD_RESULT_KEY_BIOS_SETTING_ID, priv->id);
+	fwupd_codec_string_append(str,
+				  idt,
+				  FWUPD_RESULT_KEY_BIOS_SETTING_CANONICAL_ID,
+				  priv->canonical_id);
+	if (priv->flags != 0) {
+		for (guint i = 0; i < 64; i++) {
+			const gchar *tmp;
+			if ((priv->flags & ((guint64)1 << i)) == 0)
+				continue;
+			tmp = fwupd_bios_setting_flag_to_string((guint64)1 << i);
+			if (tmp == NULL)
+				continue;
+			fwupd_codec_string_append(str, idt, FWUPD_RESULT_KEY_BIOS_SETTING_FLAGS, tmp);
+		}
+	}
 	fwupd_codec_string_append(str, idt, FWUPD_RESULT_KEY_DESCRIPTION, priv->description);
 	fwupd_codec_string_append(str, idt, FWUPD_RESULT_KEY_FILENAME, priv->path);
 	fwupd_codec_string_append_int(str, idt, FWUPD_RESULT_KEY_BIOS_SETTING_TYPE, priv->kind);
@@ -1293,6 +1484,7 @@ fwupd_bios_setting_finalize(GObject *object)
 
 	g_free(priv->current_value);
 	g_free(priv->id);
+	g_free(priv->canonical_id);
 	g_free(priv->name);
 	g_free(priv->description);
 	g_free(priv->path);

@@ -1,0 +1,23 @@
+# Maps vendor-specific BIOS setting IDs to vendor-neutral canonical IDs and marks
+# settings that are considered safe and useful to show to end users.
+#
+# The group key is the BIOS setting ID as constructed by fwupd, i.e.
+# `com.<driver>.<Name>`. It is automatically converted to a GUID on load.
+
+# Secure Boot
+[com.dell-wmi-sysman.SecureBoot]
+BiosSettingCanonicalId = secure-boot
+BiosSettingFlags = user-friendly
+
+[com.thinklmi.SecureBoot]
+BiosSettingCanonicalId = secure-boot
+BiosSettingFlags = user-friendly
+
+# Firmware update opt-in (BIOS updates delivered via LVFS or the OS)
+[com.dell-wmi-sysman.CapsuleFirmwareUpdate]
+BiosSettingCanonicalId = firmware-update-opt-in
+BiosSettingFlags = user-friendly
+
+[com.thinklmi.WindowsUEFIFirmwareUpdate]
+BiosSettingCanonicalId = firmware-update-opt-in
+BiosSettingFlags = user-friendly

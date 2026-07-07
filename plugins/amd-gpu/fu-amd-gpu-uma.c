@@ -188,6 +188,9 @@ fu_amd_gpu_uma_get_setting(const gchar *device_sysfs_path, GError **error)
 	fwupd_bios_setting_set_kind(FWUPD_BIOS_SETTING(attr), FWUPD_BIOS_SETTING_KIND_ENUMERATION);
 	fwupd_bios_setting_set_path(FWUPD_BIOS_SETTING(attr), uma_dir);
 	fwupd_bios_setting_set_filename(FWUPD_BIOS_SETTING(attr), UMA_CARVEOUT_FILE);
+	fwupd_bios_setting_set_canonical_id(FWUPD_BIOS_SETTING(attr), "video-memory");
+	fwupd_bios_setting_add_flag(FWUPD_BIOS_SETTING(attr),
+				    FWUPD_BIOS_SETTING_FLAG_USER_FRIENDLY);
 
 	options_file = g_build_filename(uma_dir, UMA_CARVEOUT_OPTIONS_FILE, NULL);
 	options_content = fu_amd_gpu_uma_read_file(options_file, error);

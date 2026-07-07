@@ -15,8 +15,12 @@
 #include "fu-bios-setting.h"
 #include "fu-bios-settings-private.h"
 #include "fu-common.h"
+#include "fu-context.h"
 #include "fu-path.h"
+#include "fu-quirks.h"
 #include "fu-string.h"
+
+#include "fwupd-bios-setting-struct.h"
 
 #define LENOVO_READ_ONLY_NEEDLE "[Status:ShowOnly]"
 
@@ -351,6 +355,33 @@ fu_bios_settings_populate_read_only(FuBiosSettings *self)
 }
 
 static void
+fu_bios_settings_set_canonical(FuBiosSettings *self, FuContext *ctx, FwupdBiosSetting *attr)
+{
+	const gchar *id = fwupd_bios_setting_get_id(attr);
+	const gchar *canonical_id;
+	const gchar *flags;
+	g_autofree gchar *guid = NULL;
+
+	if (ctx == NULL || id == NULL)
+		return;
+
+	guid = fwupd_guid_hash_string(id);
+	canonical_id =
+	    fu_context_lookup_quirk_by_id(ctx, guid, FU_QUIRKS_BIOS_SETTING_CANONICAL_ID);
+	if (canonical_id != NULL)
+		fwupd_bios_setting_set_canonical_id(attr, canonical_id);
+	flags = fu_context_lookup_quirk_by_id(ctx, guid, FU_QUIRKS_BIOS_SETTING_FLAGS);
+	if (flags != NULL) {
+		g_auto(GStrv) split = g_strsplit(flags, ",", -1);
+		for (guint i = 0; split[i] != NULL; i++) {
+			FwupdBiosSettingFlags flag = fwupd_bios_setting_flag_from_string(split[i]);
+			if (flag != FWUPD_BIOS_SETTING_FLAG_NONE)
+				fwupd_bios_setting_add_flag(attr, flag);
+		}
+	}
+}
+
+static void
 fu_bios_settings_combination_fixups(FuBiosSettings *self)
 {
 	FwupdBiosSetting *thinklmi_sb = fu_bios_settings_get_attr(self, "com.thinklmi.SecureBoot");
@@ -380,7 +411,7 @@ fu_bios_settings_combination_fixups(FuBiosSettings *self)
  * Since: 1.8.4
  **/
 gboolean
-fu_bios_settings_setup(FuBiosSettings *self, GError **error)
+fu_bios_settings_setup(FuBiosSettings *self, FuContext *ctx, GError **error)
 {
 	guint count = 0;
 	const gchar *sysfsfwdir = NULL;
@@ -444,6 +475,12 @@ fu_bios_settings_setup(FuBiosSettings *self, GError **error)
 		} while (++count);
 	} while (TRUE);
 	g_info("loaded %u BIOS settings", count);
+
+	/* apply vendor-neutral canonical IDs and flags from quirks */
+	for (guint i = 0; i < self->attrs->len; i++) {
+		FwupdBiosSetting *attr = g_ptr_array_index(self->attrs, i);
+		fu_bios_settings_set_canonical(self, ctx, attr);
+	}
 
 	fu_bios_settings_combination_fixups(self);
 

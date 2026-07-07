@@ -118,6 +118,11 @@ fu_amd_gpu_uma_get_setting_valid_func(void)
 	g_assert_cmpint(possible_values->len, ==, 3);
 
 	g_assert_cmpstr(fwupd_bios_setting_get_current_value(setting), ==, "Minimum (512 MB)");
+
+	/* user-friendly setting with a vendor-neutral canonical ID */
+	g_assert_cmpstr(fwupd_bios_setting_get_canonical_id(setting), ==, "video-memory");
+	g_assert_true(
+	    fwupd_bios_setting_has_flag(setting, FWUPD_BIOS_SETTING_FLAG_USER_FRIENDLY));
 }
 
 static void

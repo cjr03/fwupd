@@ -524,7 +524,7 @@ fu_context_reload_bios_settings(FuContext *self, GError **error)
 {
 	FuContextPrivate *priv = GET_PRIVATE(self);
 	g_return_val_if_fail(FU_IS_CONTEXT(self), FALSE);
-	return fu_bios_settings_setup(priv->host_bios_settings, error);
+	return fu_bios_settings_setup(priv->host_bios_settings, self, error);
 }
 
 /**
@@ -1153,6 +1153,9 @@ fu_context_lookup_quirk_by_id(FuContext *self, const gchar *guid, const gchar *k
 	g_return_val_if_fail(FU_IS_CONTEXT(self), NULL);
 	g_return_val_if_fail(guid != NULL, NULL);
 	g_return_val_if_fail(key != NULL, NULL);
+
+	if (priv->flags & FU_CONTEXT_FLAG_NO_QUIRKS)
+		return NULL;
 
 	/* exact ID */
 	return fu_quirks_lookup_by_id(priv->quirks, guid, key);

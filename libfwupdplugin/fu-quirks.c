@@ -1130,6 +1130,8 @@ fu_quirks_init(FuQuirks *self)
 	fu_quirks_add_possible_key(self, FU_QUIRKS_PROTOCOL);
 	fu_quirks_add_possible_key(self, FU_QUIRKS_PROXY_GUID);
 	fu_quirks_add_possible_key(self, FU_QUIRKS_BATTERY_THRESHOLD);
+	fu_quirks_add_possible_key(self, FU_QUIRKS_BIOS_SETTING_CANONICAL_ID);
+	fu_quirks_add_possible_key(self, FU_QUIRKS_BIOS_SETTING_FLAGS);
 	fu_quirks_add_possible_key(self, FU_QUIRKS_REMOVE_DELAY);
 	fu_quirks_add_possible_key(self, FU_QUIRKS_SUMMARY);
 	fu_quirks_add_possible_key(self, FU_QUIRKS_UPDATE_IMAGE);

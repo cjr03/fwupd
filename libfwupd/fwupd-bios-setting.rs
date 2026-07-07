@@ -13,3 +13,13 @@ enum FwupdBiosSettingKind {
     // BIOS setting that accepts a string.
     String,
 }
+
+// The flags available for BIOS settings.
+// Since: 2.1.7
+#[derive(ToString(enum), FromString(enum))]
+enum FwupdBiosSettingFlags {
+    // No flags set.
+    None = 0,
+    // Setting is considered safe and useful to show to end users.
+    UserFriendly = 1 << 0,
+}

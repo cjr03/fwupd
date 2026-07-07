@@ -127,10 +127,17 @@ fwupd_bios_settings_func(void)
 	fwupd_bios_setting_set_filename(attr1, "current_value");
 	g_assert_cmpstr(fwupd_bios_setting_get_filename(attr1), ==, "current_value");
 
+	fwupd_bios_setting_set_canonical_id(attr1, "secure-boot");
+	g_assert_cmpstr(fwupd_bios_setting_get_canonical_id(attr1), ==, "secure-boot");
+	fwupd_bios_setting_add_flag(attr1, FWUPD_BIOS_SETTING_FLAG_USER_FRIENDLY);
+	g_assert_true(fwupd_bios_setting_has_flag(attr1, FWUPD_BIOS_SETTING_FLAG_USER_FRIENDLY));
+
 	str1 = fwupd_codec_to_string(FWUPD_CODEC(attr1));
 	ret = fu_test_compare_lines(str1,
 				    "FwupdBiosSetting:\n"
 				    "  Name:                 UEFISecureBoot\n"
+				    "  BiosSettingCanonicalId: secure-boot\n"
+				    "  BiosSettingFlags:     user-friendly\n"
 				    "  Description:          Controls Secure boot\n"
 				    "  Filename:             /path/to/bar\n"
 				    "  BiosSettingType:      1\n"
@@ -152,6 +159,8 @@ fwupd_bios_settings_func(void)
 	ret = fu_test_compare_lines(str2,
 				    "FwupdBiosSetting:\n"
 				    "  Name:                 UEFISecureBoot\n"
+				    "  BiosSettingCanonicalId: secure-boot\n"
+				    "  BiosSettingFlags:     user-friendly\n"
 				    "  Description:          Controls Secure boot\n"
 				    "  Filename:             /path/to/bar\n"
 				    "  BiosSettingType:      1\n"
@@ -173,6 +182,8 @@ fwupd_bios_settings_func(void)
 				    "  \"Name\": \"UEFISecureBoot\",\n"
 				    "  \"Description\": \"Controls Secure boot\",\n"
 				    "  \"Filename\": \"/path/to/bar\",\n"
+				    "  \"BiosSettingCanonicalId\": \"secure-boot\",\n"
+				    "  \"BiosSettingFlags\": 1,\n"
 				    "  \"BiosSettingCurrentValue\": \"Disabled\",\n"
 				    "  \"BiosSettingFilename\": \"current_value\",\n"
 				    "  \"BiosSettingReadOnly\": false,\n"
@@ -209,6 +220,8 @@ fwupd_bios_settings_func(void)
 	ret = fu_test_compare_lines(str4,
 				    "FwupdBiosSetting:\n"
 				    "  Name:                 UEFISecureBoot\n"
+				    "  BiosSettingCanonicalId: secure-boot\n"
+				    "  BiosSettingFlags:     user-friendly\n"
 				    "  Description:          Controls Secure boot\n"
 				    "  Filename:             /path/to/bar\n"
 				    "  BiosSettingType:      1\n"
@@ -229,6 +242,8 @@ fwupd_bios_settings_func(void)
 				    "  \"Name\": \"UEFISecureBoot\",\n"
 				    "  \"Description\": \"Controls Secure boot\",\n"
 				    "  \"Filename\": \"/path/to/bar\",\n"
+				    "  \"BiosSettingCanonicalId\": \"secure-boot\",\n"
+				    "  \"BiosSettingFlags\": 1,\n"
 				    "  \"BiosSettingCurrentValue\": \"Disabled\",\n"
 				    "  \"BiosSettingFilename\": \"current_value\",\n"
 				    "  \"BiosSettingReadOnly\": false,\n"

@@ -21,8 +21,10 @@ fu_bios_settings_load_func(void)
 	FwupdBiosSetting *setting;
 	FwupdBiosSettingKind kind;
 	g_autofree gchar *base_dir = NULL;
+	g_autofree gchar *quirks_dir = NULL;
 	g_autofree gchar *test_dir = NULL;
 	g_autoptr(FuContext) ctx = fu_context_new();
+	g_autoptr(FuProgress) progress = fu_progress_new(G_STRLOC);
 	g_autoptr(GError) error = NULL;
 	g_autoptr(FuBiosSettings) p620_6_3_settings = NULL;
 	g_autoptr(GPtrArray) p620_6_3_items = NULL;
@@ -41,6 +43,14 @@ fu_bios_settings_load_func(void)
 		g_test_skip("Missing test data");
 		return;
 	}
+
+	/* load quirks so the canonical-ID and flags mappings are available */
+	quirks_dir = g_test_build_filename(G_TEST_DIST, "tests", "quirks.d", NULL);
+	fu_context_set_path(ctx, FU_PATH_KIND_DATADIR_QUIRKS, quirks_dir);
+	fu_context_add_flag(ctx, FU_CONTEXT_FLAG_NO_CACHE);
+	ret = fu_context_load(ctx, progress, FU_CONTEXT_LOAD_FLAG_NONE, &error);
+	g_assert_no_error(error);
+	g_assert_true(ret);
 
 	/* load BIOS settings from a Lenovo P620 (with thinklmi driver problems) */
 	test_dir = g_build_filename(base_dir, "lenovo-p620", NULL);
@@ -185,6 +195,20 @@ fu_bios_settings_load_func(void)
 		g_assert_nonnull(setting);
 		ret = fwupd_bios_setting_get_read_only(setting);
 		g_assert_true(ret);
+
+		/* the canonical ID and user-friendly flag come from the quirk mapping */
+		tmp = fwupd_bios_setting_get_canonical_id(setting);
+		g_assert_cmpstr(tmp, ==, "secure-boot");
+		ret = fwupd_bios_setting_has_flag(setting, FWUPD_BIOS_SETTING_FLAG_USER_FRIENDLY);
+		g_assert_true(ret);
+
+		/* an esoteric setting has no canonical ID and is not user-friendly */
+		setting = fu_context_get_bios_setting(ctx, "com.dell-wmi-sysman.Asset");
+		g_assert_nonnull(setting);
+		tmp = fwupd_bios_setting_get_canonical_id(setting);
+		g_assert_null(tmp);
+		ret = fwupd_bios_setting_has_flag(setting, FWUPD_BIOS_SETTING_FLAG_USER_FRIENDLY);
+		g_assert_false(ret);
 	}
 	g_free(test_dir);
 

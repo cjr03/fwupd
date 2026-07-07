@@ -1201,3 +1201,17 @@ LIBFWUPD_2.1.6 {
     fwupd_bios_setting_setup;
   local: *;
 } LIBFWUPD_2.1.4;
+
+LIBFWUPD_2.1.7 {
+  global:
+    fwupd_bios_setting_add_flag;
+    fwupd_bios_setting_flag_from_string;
+    fwupd_bios_setting_flag_to_string;
+    fwupd_bios_setting_get_canonical_id;
+    fwupd_bios_setting_get_flags;
+    fwupd_bios_setting_has_flag;
+    fwupd_bios_setting_remove_flag;
+    fwupd_bios_setting_set_canonical_id;
+    fwupd_bios_setting_set_flags;
+  local: *;
+} LIBFWUPD_2.1.6;

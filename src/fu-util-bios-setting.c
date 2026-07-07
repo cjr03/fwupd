@@ -120,6 +120,17 @@ fu_util_bios_setting_to_string(FwupdBiosSetting *setting, guint idt)
 				  _("Description"),
 				  fwupd_bios_setting_get_description(setting));
 
+	tmp = fwupd_bios_setting_get_canonical_id(setting);
+	if (tmp != NULL) {
+		/* TRANSLATORS: vendor-neutral identifier of a BIOS setting */
+		fwupd_codec_string_append(str, idt + 1, _("Canonical ID"), tmp);
+	}
+
+	if (fwupd_bios_setting_has_flag(setting, FWUPD_BIOS_SETTING_FLAG_USER_FRIENDLY)) {
+		/* TRANSLATORS: BIOS setting is safe and useful to show end users */
+		fwupd_codec_string_append(str, idt + 1, _("User Friendly"), _("True"));
+	}
+
 	if (fwupd_bios_setting_get_read_only(setting)) {
 		/* TRANSLATORS: item is TRUE */
 		tmp = _("True");
