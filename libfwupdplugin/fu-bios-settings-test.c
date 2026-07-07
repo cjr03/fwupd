@@ -230,11 +230,50 @@ fu_bios_settings_load_func(void)
 	}
 }
 
+/* make sure setup still works, and canonical IDs stay unset, when quirks are disabled */
+static void
+fu_bios_settings_no_quirks_func(void)
+{
+	gboolean ret;
+	const gchar *tmp;
+	FwupdBiosSetting *setting;
+	g_autofree gchar *base_dir = NULL;
+	g_autofree gchar *test_dir = NULL;
+	g_autoptr(FuContext) ctx = fu_context_new_full(FU_CONTEXT_FLAG_NO_QUIRKS);
+	g_autoptr(GError) error = NULL;
+
+#ifdef _WIN32
+	g_test_skip("BIOS settings not supported on Windows");
+	return;
+#endif
+
+	base_dir = g_test_build_filename(G_TEST_DIST, "tests", "bios-attrs", NULL);
+	test_dir = g_build_filename(base_dir, "dell-xps13-9310", NULL);
+	if (!g_file_test(test_dir, G_FILE_TEST_EXISTS)) {
+		g_test_skip("Missing test data");
+		return;
+	}
+
+	fu_context_set_path(ctx, FU_PATH_KIND_SYSFSDIR_FW_ATTRIB, test_dir);
+	ret = fu_context_reload_bios_settings(ctx, &error);
+	g_assert_no_error(error);
+	g_assert_true(ret);
+
+	/* the setting still loads, but has no canonical ID or user-friendly flag */
+	setting = fu_context_get_bios_setting(ctx, "com.dell-wmi-sysman.SecureBoot");
+	g_assert_nonnull(setting);
+	tmp = fwupd_bios_setting_get_canonical_id(setting);
+	g_assert_null(tmp);
+	ret = fwupd_bios_setting_has_flag(setting, FWUPD_BIOS_SETTING_FLAG_USER_FRIENDLY);
+	g_assert_false(ret);
+}
+
 int
 main(int argc, char **argv)
 {
 	(void)g_setenv("G_TEST_SRCDIR", SRCDIR, FALSE);
 	g_test_init(&argc, &argv, NULL);
 	g_test_add_func("/fwupd/bios-settings/load", fu_bios_settings_load_func);
+	g_test_add_func("/fwupd/bios-settings/no-quirks", fu_bios_settings_no_quirks_func);
 	return g_test_run();
 }
