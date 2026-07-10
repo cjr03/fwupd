@@ -45,7 +45,7 @@ typedef enum {
 	FU_UTIL_OPERATION_LAST
 } FuUtilOperation;
 
-struct FuUtilPrivate {
+struct FuUtil {
 	GCancellable *cancellable;
 	GMainContext *main_ctx;
 	GMainLoop *loop;
@@ -79,12 +79,9 @@ struct FuUtilPrivate {
 	FwupdDeviceFlags filter_device_exclude;
 	FwupdReleaseFlags filter_release_include;
 	FwupdReleaseFlags filter_release_exclude;
-};
-
-typedef struct self {
-	GMainLoop *loop;
 	gulong death_id;
-} FuUtil;
+};
+typedef struct FuUtil FuUtilPrivate;
 
 static void
 fu_util_private_free(FuUtilPrivate *priv)
@@ -266,7 +263,7 @@ fu_util_transact(FuUtilPrivate *priv,
 
 	in = g_steal_pointer(&pending_in);
 	nstatus =
-	    AIBinder_transact(self->fwupd_binder, code, &in, out, flags | FLAG_PRIVATE_VENDOR);
+	    AIBinder_transact(priv->fwupd_binder, code, &in, out, flags | FLAG_PRIVATE_VENDOR);
 
 	if (nstatus != STATUS_OK) {
 		status = AStatus_fromStatus(nstatus);
@@ -417,8 +414,12 @@ fu_util_build_device_tree_cb(FuUtilNode *n, gpointer user_data)
 				      priv->filter_device_include,
 				      priv->filter_device_exclude))
 		g_clear_object(&n->data);
-	else if (!priv->show_all && !fu_util_is_interesting_device(dev))
-		g_clear_object(&n->data);
+	else if (!priv->show_all) {
+		g_autoptr(GPtrArray) devs = g_ptr_array_new();
+		g_ptr_array_add(devs, dev);
+		if (!fu_util_is_interesting_device(devs, dev))
+			g_clear_object(&n->data);
+	}
 
 	/* continue */
 	return FALSE;
@@ -499,7 +500,7 @@ fu_util_get_devices_as_json(FuUtilPrivate *self, GPtrArray *devs, GError **error
 }
 
 static gboolean
-fu_util_get_devices(FuUtilPrivate *self, gchar **values, GError **error)
+fu_util_get_devices(FuUtilPrivate *priv, gchar **values, GError **error)
 {
 	g_autoptr(FuUtilNode) root = g_node_new(NULL);
 	g_autoptr(GPtrArray) devs = fu_util_get_devices_call(priv, error);
@@ -508,8 +509,8 @@ fu_util_get_devices(FuUtilPrivate *self, gchar **values, GError **error)
 		return FALSE;
 
 	/* not for human consumption */
-	if (self->as_json)
-		return fu_util_get_devices_as_json(self, devs, error);
+	if (priv->as_json)
+		return fu_util_get_devices_as_json(priv, devs, error);
 
 	/* print */
 	if (devs->len > 0)
@@ -526,15 +527,19 @@ fu_util_get_devices(FuUtilPrivate *self, gchar **values, GError **error)
 }
 
 static gboolean
-fu_util_get_hwids_call(FuUtil *self, GStrv *keys, GStrv *values, GError **error)
+fu_util_get_hwids_call(FuUtilPrivate *priv, GStrv *keys, GStrv *values, GError **error)
 {
 	g_autoptr(AParcel) out = NULL;
 	g_autoptr(GVariant) val = NULL;
 	GVariantBuilder builder;
 	const GVariantType *vtype = G_VARIANT_TYPE("(a{sv})");
 	guint size;
+	g_autoptr(GVariant) val_hwids = NULL;
+	g_autoptr(GVariantIter) iter = NULL;
+	const gchar *hwid_key;
+	GVariant *hwid_value_v;
 
-	if (!fu_util_transact(self, FWUPD_BINDER_CALL_GET_HWIDS, NULL, 0, &out, error))
+	if (!fu_util_transact(priv, FWUPD_BINDER_CALL_GET_HWIDS, NULL, 0, &out, error))
 		return FALSE;
 
 	g_variant_builder_init(&builder, vtype);
@@ -542,11 +547,7 @@ fu_util_get_hwids_call(FuUtil *self, GStrv *keys, GStrv *values, GError **error)
 		return FALSE;
 	val = g_variant_builder_end(&builder);
 
-	g_autoptr(GVariant) val_hwids = g_variant_get_child_value(val, 0);
-	g_autoptr(GVariantIter) iter = NULL;
-	const gchar *hwid_key;
-	GVariant *hwid_value_v;
-
+	val_hwids = g_variant_get_child_value(val, 0);
 	size = g_variant_n_children(val_hwids);
 	*keys = g_new0(gchar *, size + 1);
 	*values = g_new0(gchar *, size + 1);
@@ -561,40 +562,40 @@ fu_util_get_hwids_call(FuUtil *self, GStrv *keys, GStrv *values, GError **error)
 }
 
 static void
-fu_util_hwids_as_json(FuUtil *self, GStrv hwids_keys, GStrv hwids_values)
+fu_util_hwids_as_json(FuUtilPrivate *priv, GStrv hwids_keys, GStrv hwids_values)
 {
 	g_autoptr(FwupdJsonObject) json_obj = fwupd_json_object_new();
 	for (guint i = 0; hwids_keys[i] != NULL; i++)
 		fwupd_json_object_add_string(json_obj, hwids_keys[i], hwids_values[i]);
-	fu_util_print_json_object(self->console, json_obj);
+	fu_util_print_json_object(priv->console, json_obj);
 }
 
 static gboolean
-fu_util_hwids(FuUtil *self, gchar **values, GError **error)
+fu_util_hwids(FuUtilPrivate *priv, gchar **values, GError **error)
 {
 	g_auto(GStrv) hwids_keys = NULL;
 	g_auto(GStrv) hwids_values = NULL;
 
-	if (!fu_util_get_hwids_call(self, &hwids_keys, &hwids_values, error))
+	if (!fu_util_get_hwids_call(priv, &hwids_keys, &hwids_values, error))
 		return FALSE;
 
-	if (self->as_json) {
-		fu_util_hwids_as_json(self, hwids_keys, hwids_values);
+	if (priv->as_json) {
+		fu_util_hwids_as_json(priv, hwids_keys, hwids_values);
 		return TRUE;
 	}
 
 	/* show debug output */
-	fu_console_print_literal(self->console, "Computer Information");
-	fu_console_print_literal(self->console, "--------------------");
+	fu_console_print_literal(priv->console, "Computer Information");
+	fu_console_print_literal(priv->console, "--------------------");
 	for (guint i = 0; hwids_keys[i] != NULL; i++) {
 		if (fwupd_guid_is_valid(hwids_values[i]))
 			continue;
-		fu_console_print(self->console, "%s: %s", hwids_keys[i], hwids_values[i]);
+		fu_console_print(priv->console, "%s: %s", hwids_keys[i], hwids_values[i]);
 	}
 
 	/* show GUIDs */
-	fu_console_print_literal(self->console, "Hardware IDs");
-	fu_console_print_literal(self->console, "------------");
+	fu_console_print_literal(priv->console, "Hardware IDs");
+	fu_console_print_literal(priv->console, "------------");
 	for (guint i = 0; hwids_keys[i] != NULL; i++) {
 		g_autofree gchar *hwids_keys_real = NULL;
 		g_auto(GStrv) hwids_keys_strv = NULL;
@@ -602,7 +603,7 @@ fu_util_hwids(FuUtil *self, gchar **values, GError **error)
 			continue;
 		hwids_keys_strv = g_strsplit(hwids_keys[i], "&", -1);
 		hwids_keys_real = g_strjoinv(" + ", hwids_keys_strv);
-		fu_console_print(self->console, "{%s}   <- %s", hwids_values[i], hwids_keys_real);
+		fu_console_print(priv->console, "{%s}   <- %s", hwids_values[i], hwids_keys_real);
 	}
 
 	/* success */
@@ -761,7 +762,7 @@ fu_util_refresh(FuUtilPrivate *priv, gchar **values, GError **error)
 }
 
 static gboolean
-fu_util_get_upgrades_as_json(FuUtilPrivate *self, GPtrArray *devices, GError **error)
+fu_util_get_upgrades_as_json(FuUtilPrivate *priv, GPtrArray *devices, GError **error)
 {
 	g_autoptr(FwupdJsonObject) json_obj = fwupd_json_object_new();
 	g_autoptr(FwupdJsonArray) json_arr = fwupd_json_array_new();
@@ -776,12 +777,12 @@ fu_util_get_upgrades_as_json(FuUtilPrivate *self, GPtrArray *devices, GError **e
 		    !fwupd_device_has_flag(dev, FWUPD_DEVICE_FLAG_UPDATABLE_HIDDEN))
 			continue;
 		if (!fwupd_device_match_flags(dev,
-					      self->filter_device_include,
-					      self->filter_device_exclude))
+					      priv->filter_device_include,
+					      priv->filter_device_exclude))
 			continue;
 
 		/* get the releases for this device and filter for validity */
-		rels = fu_util_get_upgrades_call(self, fwupd_device_get_id(dev), &error_local);
+		rels = fu_util_get_upgrades_call(priv, fwupd_device_get_id(dev), &error_local);
 		if (rels == NULL) {
 			/* discard the actual reason from user, but leave for debugging */
 			g_debug("%s", error_local->message);
@@ -793,8 +794,8 @@ fu_util_get_upgrades_as_json(FuUtilPrivate *self, GPtrArray *devices, GError **e
 			FwupdRelease *rel = g_ptr_array_index(rels, j);
 			g_autoptr(FwupdJsonObject) json_obj_tmp = fwupd_json_object_new();
 			if (!fwupd_release_match_flags(rel,
-						       self->filter_release_include,
-						       self->filter_release_exclude))
+						       priv->filter_release_include,
+						       priv->filter_release_exclude))
 				continue;
 			fwupd_codec_to_json(FWUPD_CODEC(rel),
 					    json_obj_tmp,
@@ -803,12 +804,12 @@ fu_util_get_upgrades_as_json(FuUtilPrivate *self, GPtrArray *devices, GError **e
 		}
 	}
 	fwupd_json_object_add_array(json_obj, "Releases", json_arr);
-	fu_util_print_json_object(self->console, json_obj);
+	fu_util_print_json_object(priv->console, json_obj);
 	return TRUE;
 }
 
 static gboolean
-fu_util_get_upgrades(FuUtilPrivate *self, gchar **values, GError **error)
+fu_util_get_upgrades(FuUtilPrivate *priv, gchar **values, GError **error)
 {
 	g_autoptr(GPtrArray) devices = NULL;
 	gboolean supported = FALSE;
@@ -842,8 +843,8 @@ fu_util_get_upgrades(FuUtilPrivate *self, gchar **values, GError **error)
 	}
 
 	/* not for human consumption */
-	if (self->as_json)
-		return fu_util_get_upgrades_as_json(self, devices, error);
+	if (priv->as_json)
+		return fu_util_get_upgrades_as_json(priv, devices, error);
 
 	for (guint i = 0; i < devices->len; i++) {
 		FwupdDevice *dev = g_ptr_array_index(devices, i);
@@ -1136,7 +1137,7 @@ fu_binder_client_log_handler(const gchar *log_domain,
 }
 
 static gboolean
-fu_util_emulation_tag(FuUtil *self, gchar **values, GError **error)
+fu_util_emulation_tag(FuUtilPrivate *priv, gchar **values, GError **error)
 {
 	g_autoptr(AParcel) out = NULL;
 	g_autoptr(GVariant) val = NULL;
@@ -1150,11 +1151,11 @@ fu_util_emulation_tag(FuUtil *self, gchar **values, GError **error)
 	}
 
 	val = g_variant_new("(s)", values[0]);
-	return fu_util_transact(self, FWUPD_BINDER_CALL_EMULATION_TAG, val, 0, &out, error);
+	return fu_util_transact(priv, FWUPD_BINDER_CALL_EMULATION_TAG, val, 0, &out, error);
 }
 
 static gboolean
-fu_util_emulation_untag(FuUtil *self, gchar **values, GError **error)
+fu_util_emulation_untag(FuUtilPrivate *priv, gchar **values, GError **error)
 {
 	g_autoptr(AParcel) out = NULL;
 	g_autoptr(GVariant) val = NULL;
@@ -1168,11 +1169,11 @@ fu_util_emulation_untag(FuUtil *self, gchar **values, GError **error)
 	}
 
 	val = g_variant_new("(s)", values[0]);
-	return fu_util_transact(self, FWUPD_BINDER_CALL_EMULATION_UNTAG, val, 0, &out, error);
+	return fu_util_transact(priv, FWUPD_BINDER_CALL_EMULATION_UNTAG, val, 0, &out, error);
 }
 
 static gboolean
-fu_util_emulation_load(FuUtil *self, gchar **values, GError **error)
+fu_util_emulation_load(FuUtilPrivate *priv, gchar **values, GError **error)
 {
 	g_autoptr(AParcel) out = NULL;
 	g_autoptr(GVariant) val = NULL;
@@ -1202,11 +1203,11 @@ fu_util_emulation_load(FuUtil *self, gchar **values, GError **error)
 	}
 
 	val = g_variant_new("(hh)", fd_emu, fd_cab);
-	return fu_util_transact(self, FWUPD_BINDER_CALL_EMULATION_LOAD, val, 0, &out, error);
+	return fu_util_transact(priv, FWUPD_BINDER_CALL_EMULATION_LOAD, val, 0, &out, error);
 }
 
 static gboolean
-fu_util_emulation_save(FuUtil *self, gchar **values, GError **error)
+fu_util_emulation_save(FuUtilPrivate *priv, gchar **values, GError **error)
 {
 	g_autoptr(AParcel) out = NULL;
 	g_autoptr(GVariant) val = NULL;
@@ -1233,15 +1234,15 @@ fu_util_emulation_save(FuUtil *self, gchar **values, GError **error)
 	}
 
 	val = g_variant_new("(h)", fd);
-	ret = fu_util_transact(self, FWUPD_BINDER_CALL_EMULATION_SAVE, val, 0, &out, error);
+	ret = fu_util_transact(priv, FWUPD_BINDER_CALL_EMULATION_SAVE, val, 0, &out, error);
 	close(fd);
 	return ret;
 }
 
 static gboolean
-fu_util_device_emulate_remove_devices(FuUtil *self, GError **error)
+fu_util_device_emulate_remove_devices(FuUtilPrivate *priv, GError **error)
 {
-	g_autoptr(GPtrArray) devices = fu_util_get_devices_call(self, error);
+	g_autoptr(GPtrArray) devices = fu_util_get_devices_call(priv, error);
 	if (devices == NULL)
 		return FALSE;
 
@@ -1254,7 +1255,7 @@ fu_util_device_emulate_remove_devices(FuUtil *self, GError **error)
 			continue;
 
 		val = g_variant_new("(sss)", fwupd_device_get_id(device), "Flags", "~emulated");
-		if (!fu_util_transact(self, FWUPD_BINDER_CALL_MODIFY_DEVICE, val, 0, &out, error))
+		if (!fu_util_transact(priv, FWUPD_BINDER_CALL_MODIFY_DEVICE, val, 0, &out, error))
 			return FALSE;
 	}
 
@@ -1262,7 +1263,7 @@ fu_util_device_emulate_remove_devices(FuUtil *self, GError **error)
 }
 
 static gboolean
-fu_util_device_emulate_step(FuUtil *self, FwupdJsonObject *json_obj, GError **error)
+fu_util_device_emulate_step(FuUtilPrivate *priv, FwupdJsonObject *json_obj, GError **error)
 {
 	const gchar *emulation_filename;
 	g_autoptr(GUnixInputStream) istr_emu = NULL;
@@ -1283,7 +1284,7 @@ fu_util_device_emulate_step(FuUtil *self, FwupdJsonObject *json_obj, GError **er
 	fd_emu = g_unix_input_stream_get_fd(istr_emu);
 
 	val = g_variant_new("(hh)", fd_emu, -1);
-	if (!fu_util_transact(self, FWUPD_BINDER_CALL_EMULATION_LOAD, val, 0, &out, error))
+	if (!fu_util_transact(priv, FWUPD_BINDER_CALL_EMULATION_LOAD, val, 0, &out, error))
 		return FALSE;
 
 	g_clear_object(&istr_emu);
@@ -1294,9 +1295,9 @@ fu_util_device_emulate_step(FuUtil *self, FwupdJsonObject *json_obj, GError **er
 	if (url_tmp != NULL) {
 		g_autofree gchar *filename = NULL;
 		g_autoptr(GUnixInputStream) istr_cab = NULL;
-		FwupdInstallFlags install_flags = self->flags | FWUPD_INSTALL_FLAG_ALLOW_OLDER | FWUPD_INSTALL_FLAG_ALLOW_REINSTALL;
+		FwupdInstallFlags install_flags = priv->flags | FWUPD_INSTALL_FLAG_ALLOW_OLDER | FWUPD_INSTALL_FLAG_ALLOW_REINSTALL;
 
-		filename = fu_util_download_if_required(self, url_tmp, error);
+		filename = fu_util_download_if_required(priv, url_tmp, error);
 		if (filename == NULL)
 			return FALSE;
 
@@ -1314,21 +1315,21 @@ fu_util_device_emulate_step(FuUtil *self, FwupdJsonObject *json_obj, GError **er
 			val = g_variant_new("(sha{sv})", FWUPD_DEVICE_ID_ANY, g_unix_input_stream_get_fd(istr_cab), &builder);
 		}
 
-		if (!fu_util_transact(self, FWUPD_BINDER_CALL_INSTALL, val, 0, &out, error))
+		if (!fu_util_transact(priv, FWUPD_BINDER_CALL_INSTALL, val, 0, &out, error))
 			return FALSE;
 
 		g_clear_pointer(&out, AParcel_delete);
 	}
 
 	/* remove emulated devices */
-	if (!fu_util_device_emulate_remove_devices(self, error))
+	if (!fu_util_device_emulate_remove_devices(priv, error))
 		return FALSE;
 
 	return TRUE;
 }
 
 static gboolean
-fu_util_device_emulate_filename(FuUtil *self, const gchar *filename, GError **error)
+fu_util_device_emulate_filename(FuUtilPrivate *priv, const gchar *filename, GError **error)
 {
 	g_autoptr(FwupdJsonParser) json_parser = fwupd_json_parser_new();
 	g_autoptr(FwupdJsonNode) json_node = NULL;
@@ -1368,7 +1369,7 @@ fu_util_device_emulate_filename(FuUtil *self, const gchar *filename, GError **er
 			if (json_step == NULL)
 				return FALSE;
 
-			if (!fu_util_device_emulate_step(self, json_step, error))
+			if (!fu_util_device_emulate_step(priv, json_step, error))
 				return FALSE;
 		}
 	}
@@ -1377,7 +1378,7 @@ fu_util_device_emulate_filename(FuUtil *self, const gchar *filename, GError **er
 }
 
 static gboolean
-fu_util_device_emulate(FuUtil *self, gchar **values, GError **error)
+fu_util_device_emulate(FuUtilPrivate *priv, gchar **values, GError **error)
 {
 	if (g_strv_length(values) != 1) {
 		g_set_error_literal(error,
@@ -1387,7 +1388,7 @@ fu_util_device_emulate(FuUtil *self, gchar **values, GError **error)
 		return FALSE;
 	}
 
-	return fu_util_device_emulate_filename(self, values[0], error);
+	return fu_util_device_emulate_filename(priv, values[0], error);
 }
 
 int
